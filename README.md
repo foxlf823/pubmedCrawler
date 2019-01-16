@@ -1,1 +1,3 @@
+Download abstracts from PubMed
+
 java Main ./output key_word.txt doc_return_number_each_query doc_download_number_each_keyword begin_line_in_key_word_txt 
