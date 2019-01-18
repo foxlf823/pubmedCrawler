@@ -60,6 +60,11 @@ public class Main {
 				continue;
 			}
 			
+			if (line.contains("Retired procedure")) { // special for snomed
+				ct_line ++;
+				continue;
+			}
+			
 			System.out.println("#### begin feching "+ct_line+" "+line);
 
 			line = line.replaceAll("\\s", "+");
@@ -70,44 +75,108 @@ public class Main {
 			String ret1 = getURLContent(urlFindID);
 			System.out.println(ret1);
 			
-			Matcher m1 = webPattern.matcher(ret1);
-			String web = null;
-			if (m1.find())
-				web = m1.group(1);
-			else
-				throw new RuntimeException("can't find web");
-			
-			m1 = keyPattern.matcher(ret1);
-			String key = null;
-			if (m1.find())
-				key = m1.group(1);
-			else
-				throw new RuntimeException("can't find key");
-			
-			m1 = countPattern.matcher(ret1);
+			Matcher m1 = countPattern.matcher(ret1);
 			int count = 0;
 			if (m1.find())
 				count = Integer.parseInt(m1.group(1));
 			else
 				throw new RuntimeException("can't find count");
 			
-			int already_get_for_each_item = 0;
+			if (count == 0) {
+				ct_line ++;
+				continue;
+			}
+				
+			m1 = webPattern.matcher(ret1);
+			String web = null;
+			if (m1.find()) {
+				
+				web = m1.group(1);
+				
+				m1 = keyPattern.matcher(ret1);
+				String key = null;
+				if (m1.find())
+					key = m1.group(1);
+				else
+					throw new RuntimeException("can't find key");
+				
+				
+				int already_get_for_each_item = 0;
+						
+				for (int retstart = 0; retstart < count; retstart += retmax) {
 					
-			for (int retstart = 0; retstart < count; retstart += retmax) {
+					if (already_get_for_each_item >= max_for_each_item) 
+						break;
+					
+					String urlGetByBatch = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?"
+							+ "db=pubmed&retmode=text&rettype=xml"
+							+ "&WebEnv="+web+"&query_key="+key+"&retmax="+retmax
+							+ "&retstart="+retstart;
+					
+					String ret2 = getURLContent(urlGetByBatch);
+					System.out.println(ret2);
+					
+					
+					Matcher matcher = idPattern.matcher(ret2);
+					
+					while(matcher.find()) {
+						
+						if (already_get_for_each_item >= max_for_each_item) 
+							break;
+
+						String id = matcher.group(1);
+		
+						if(existID.contains(id))
+							continue;
+						else
+							existID.add(id);
+						
+						String urlGetByID = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?"
+								+ "db=pubmed&id="+id+"&retmode=text&rettype=xml";
+						String contentGetByID = getURLContent(urlGetByID);
+
+						String ret3 = id+"|t|";
+						Matcher title_matcher = titlePattern.matcher(contentGetByID);
+						if(title_matcher.find()) {
+							ret3 += title_matcher.group(1);
+						} else {
+							System.out.println("can't find title: "+id);
+							continue;
+						}
+							
+						ret3 += "\n";
+						
+						ret3 += id+"|a|";
+						Matcher abstract_matcher = abstractPattern.matcher(contentGetByID);
+						boolean findAtLeastOnce = false;
+						while(abstract_matcher.find()) {
+							ret3 += abstract_matcher.group(1);
+							findAtLeastOnce = true;
+						} 
+						if (findAtLeastOnce == false) {
+							System.out.println("can't find abstract: "+id);
+							continue;
+						}
+						ret3 += "\n";
+		
+		
+						OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(outputDir+"/"+id+".txt"), "utf-8");
+						
+						osw.write(ret3);
+						osw.close();
+						
+						already_get_for_each_item++;
+		        
+					}
+			        
+				}
+			}
+			else {
+				System.out.println("can't find web, try to use id");
 				
-				if (already_get_for_each_item >= max_for_each_item) 
-					break;
+				int already_get_for_each_item = 0;
 				
-				String urlGetByBatch = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?"
-						+ "db=pubmed&retmode=text&rettype=xml"
-						+ "&WebEnv="+web+"&query_key="+key+"&retmax="+retmax
-						+ "&retstart="+retstart;
-				
-				String ret2 = getURLContent(urlGetByBatch);
-				System.out.println(ret2);
-				
-				
-				Matcher matcher = idPattern.matcher(ret2);
+				Matcher matcher = idPattern.matcher(ret1);
 				
 				while(matcher.find()) {
 					
@@ -158,9 +227,7 @@ public class Main {
 					already_get_for_each_item++;
 	        
 				}
-		        
-
-
+				
 			}
 			
 			System.out.println("#### end feching "+ct_line+" "+line);
@@ -178,7 +245,8 @@ public class Main {
 		BufferedReader reader = null;
 		String s = "";
 		int tryCount = 0;
-		while (tryCount<5) {
+		//while (tryCount<5) {
+		while (true) {
 			try {
 				tryCount++;
 				u = new URL(url);
