@@ -73,6 +73,11 @@ public class Main {
 			String urlFindID = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?"
 					+ "db=pubmed&term="+line+"&retmode=xml&usehistory=y";
 			String ret1 = getURLContent(urlFindID);
+			if (ret1.isEmpty()) {
+				ct_line ++;
+				continue;
+			}
+			
 			System.out.println(ret1);
 			
 			Matcher m1 = countPattern.matcher(ret1);
@@ -114,6 +119,9 @@ public class Main {
 							+ "&retstart="+retstart;
 					
 					String ret2 = getURLContent(urlGetByBatch);
+					if (ret2.isEmpty()) {
+						continue;
+					}
 					System.out.println(ret2);
 					
 					
@@ -134,6 +142,9 @@ public class Main {
 						String urlGetByID = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?"
 								+ "db=pubmed&id="+id+"&retmode=text&rettype=xml";
 						String contentGetByID = getURLContent(urlGetByID);
+						if (contentGetByID.isEmpty()) {
+							continue;
+						}
 
 						String ret3 = id+"|t|";
 						Matcher title_matcher = titlePattern.matcher(contentGetByID);
@@ -193,6 +204,9 @@ public class Main {
 					String urlGetByID = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?"
 							+ "db=pubmed&id="+id+"&retmode=text&rettype=xml";
 					String contentGetByID = getURLContent(urlGetByID);
+					if (contentGetByID.isEmpty()) {
+						continue;
+					}
 
 					String ret3 = id+"|t|";
 					Matcher title_matcher = titlePattern.matcher(contentGetByID);
@@ -245,8 +259,8 @@ public class Main {
 		BufferedReader reader = null;
 		String s = "";
 		int tryCount = 0;
-		//while (tryCount<5) {
-		while (true) {
+		while (tryCount<10) {
+		//while (true) {
 			try {
 				tryCount++;
 				u = new URL(url);
